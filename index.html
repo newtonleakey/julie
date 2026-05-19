@@ -1,1 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Incoming Call 📞</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'DM Sans',sans-serif; min-height:100vh; background:#0a0a12; overflow:hidden; user-select:none; }
 
+/* ========== NEON BORDER ========== */
+#neon-border { position:fixed; inset:0; pointer-events:none; z-index:9999; }
+#neon-canvas { position:absolute; inset:0; width:100%; height:100%; }
+
+/* ========== SCREEN 0: JULIET SMOKE ========== */
+#screen-intro { position:fixed; inset:0; z-index:500; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+#smoke-canvas { position:absolute; inset:0; width:100%; height:100%; }
+.intro-skip { position:absolute; bottom:40px; font-size:12px; color:rgba(255,255,255,0.25); letter-spacing:0.2em; text-transform:uppercase; animation:blink 1.8s ease-in-out infinite; z-index:2; }
+@keyframes blink { 0%,100%{opacity:0.45} 50%{opacity:0.9} }
+
+/* ========== SCREEN 1: INCOMING CALL ========== */
+#screen-call { position:fixed; inset:0; display:none; flex-direction:column; align-items:center; justify-content:space-between; padding:60px 24px 55px; background:linear-gradient(175deg,#0f0a1a 0%,#160820 40%,#0a0510 100%); overflow:hidden; }
+
+.bg-orb { position:absolute; border-radius:50%; pointer-events:none; filter:blur(60px); }
+.orb1 { width:320px; height:320px; top:-80px; left:-80px; background:rgba(180,80,255,0.18); animation:orbDrift 8s ease-in-out infinite alternate; }
+.orb2 { width:260px; height:260px; bottom:-60px; right:-60px; background:rgba(80,160,255,0.15); animation:orbDrift 10s 2s ease-in-out infinite alternate-reverse; }
+.orb3 { width:200px; height:200px; top:40%; left:50%; background:rgba(255,80,160,0.1); animation:orbDrift3 6s 1s ease-in-out infinite alternate; }
+@keyframes orbDrift { from{transform:translate(0,0)} to{transform:translate(20px,25px)} }
+@keyframes orbDrift3 { from{transform:translate(-50%,-50%) scale(1)} to{transform:translate(-50%,-50%) scale(1.3)} }
+
+.ripple-wrap { position:relative; display:flex; align-items:center; justify-content:center; margin-top:20px; }
+.ripple { position:absolute; border-radius:50%; border:1.5px solid rgba(200,130,255,0.4); animation:rippleOut 2.4s ease-out infinite; }
+.ripple:nth-child(1){width:110px;height:110px;animation-delay:0s}
+.ripple:nth-child(2){width:150px;height:150px;animation-delay:0.6s}
+.ripple:nth-child(3){width:195px;height:195px;animation-delay:1.2s}
+.ripple:nth-child(4){width:240px;height:240px;animation-delay:1.8s}
+@keyframes rippleOut { 0%{opacity:0.8;transform:scale(0.85)} 100%{opacity:0;transform:scale(1.15)} }
+
+.avatar { width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#e879a0,#c084fc,#60a5fa);display:flex;align-items:center;justify-content:center;font-size:40px;position:relative;z-index:2;box-shadow:0 0 0 4px rgba(255,255,255,0.1),0 0 40px rgba(200,80,255,0.4);animation:avatarPulse 2.4s ease-in-out infinite; }
+@keyframes avatarPulse { 0%,100%{box-shadow:0 0 0 4px rgba(255,255,255,0.1),0 0 40px rgba(200,80,255,0.4)} 50%{box-shadow:0 0 0 4px rgba(255,255,255,0.18),0 0 60px rgba(200,80,255,0.65)} }
+
+.caller-info { text-align:center; margin-top:28px; position:relative; z-index:2; }
+.caller-label { font-size:12px; letter-spacing:0.3em; color:rgba(200,150,255,0.7); text-transform:uppercase; margin-bottom:8px; }
+.caller-name { font-family:'Playfair Display',serif; font-size:clamp(30px,8vw,46px); color:#fff; letter-spacing:0.02em; text-shadow:0 0 30px rgba(200,100,255,0.5); }
+.caller-sub { font-size:14px; color:rgba(255,255,255,0.45); margin-top:8px; letter-spacing:0.08em; animation:blink 1.8s ease-in-out infinite; }
+.swipe-hint { font-size:12px; color:rgba(255,255,255,0.25); letter-spacing:0.12em; margin-top:6px; }
+
+.call-buttons { display:flex; gap:48px; align-items:center; position:relative; z-index:2; }
+.btn-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.btn-label { font-size:12px; color:rgba(255,255,255,0.5); letter-spacing:0.08em; }
+.btn-reject,.btn-answer { width:68px;height:68px;border-radius:50%;border:none;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
+.btn-reject { background:linear-gradient(135deg,#ff3b30,#c0392b); box-shadow:0 6px 24px rgba(255,59,48,0.45); }
+.btn-reject:active { transform:scale(0.92); }
+.btn-answer { background:linear-gradient(135deg,#30d158,#1e8c3a); box-shadow:0 6px 24px rgba(48,209,88,0.45); transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes answerGrow { 0%{transform:scale(1)} 40%{transform:scale(1.35);box-shadow:0 0 0 12px rgba(48,209,88,0.25),0 10px 40px rgba(48,209,88,0.6)} 70%{transform:scale(1.22)} 100%{transform:scale(1.3);box-shadow:0 0 0 18px rgba(48,209,88,0.2),0 14px 50px rgba(48,209,88,0.65)} }
+
+#reject-msg { display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:30px; }
+.reject-emoji { font-size:60px; animation:sobShake 1.5s infinite; }
+@keyframes sobShake { 0%,100%{transform:rotate(-5deg)} 50%{transform:rotate(5deg)} }
+.reject-title { font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:#fff;text-shadow:0 0 20px rgba(255,100,100,0.6); }
+.reject-sub { font-size:14px;color:rgba(255,255,255,0.5);line-height:1.6;max-width:280px; }
+.reject-again-btn { margin-top:12px;padding:14px 36px;border-radius:100px;border:2px solid rgba(48,209,88,0.6);background:transparent;color:#30d158;font-size:15px;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.05em;transition:all 0.25s; }
+.reject-again-btn:hover { background:rgba(48,209,88,0.15); }
+
+/* ========== SCREEN 2: ANSWERED ========== */
+#screen-answered { display:none;position:fixed;inset:0;background:linear-gradient(175deg,#0f0a1a,#160820,#0a0510);flex-direction:column;align-items:center;justify-content:center;z-index:30;gap:14px; }
+.answered-avatar { width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#e879a0,#c084fc,#60a5fa);display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 0 30px rgba(200,80,255,0.5); }
+.answered-name { font-family:'Playfair Display',serif;font-size:28px;color:#fff;text-shadow:0 0 20px rgba(200,80,255,0.5); }
+.answered-timer { font-size:18px;color:rgba(255,255,255,0.5);font-variant-numeric:tabular-nums;letter-spacing:0.1em; }
+.wave-bars { display:flex;gap:5px;align-items:flex-end;height:36px;margin:8px 0; }
+.bar { width:5px;border-radius:3px;background:linear-gradient(to top,#c084fc,#60a5fa);animation:barWave 0.8s ease-in-out infinite alternate; }
+.bar:nth-child(1){height:12px;animation-delay:0s}.bar:nth-child(2){height:22px;animation-delay:0.1s}.bar:nth-child(3){height:32px;animation-delay:0.2s}.bar:nth-child(4){height:24px;animation-delay:0.3s}.bar:nth-child(5){height:16px;animation-delay:0.4s}.bar:nth-child(6){height:28px;animation-delay:0.5s}.bar:nth-child(7){height:18px;animation-delay:0.15s}
+@keyframes barWave { from{transform:scaleY(0.4);opacity:0.6} to{transform:scaleY(1);opacity:1} }
+.end-call-btn { margin-top:20px;width:64px;height:64px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff3b30,#c0392b);font-size:26px;cursor:pointer;box-shadow:0 6px 24px rgba(255,59,48,0.45);transition:transform 0.15s; }
+.end-call-btn:active { transform:scale(0.9); }
+
+/* ========== SCREEN 3: BLOOM ========== */
+#screen-bloom { display:none;position:fixed;inset:0;z-index:40;background:#ff4d8f;overflow:hidden; }
+#bloom-canvas { position:absolute;inset:0;width:100%;height:100%; }
+.phone-frame { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:90px;height:160px;border-radius:22px;border:3px solid rgba(255,255,255,0.8);background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);box-shadow:0 0 60px rgba(255,255,255,0.4);z-index:2;display:flex;align-items:center;justify-content:center;font-size:36px;animation:phoneZoom 0.5s ease-out forwards; }
+@keyframes phoneZoom { from{transform:translate(-50%,-50%) scale(0.5);opacity:0} to{transform:translate(-50%,-50%) scale(1);opacity:1} }
+
+/* ========== SCREEN 4: MESSAGE ========== */
+#screen-message { display:none;position:fixed;inset:0;z-index:60;background:linear-gradient(160deg,#fff0f7 0%,#fdf0ff 50%,#f0f4ff 100%);overflow-y:auto;overflow-x:hidden; }
+.msg-border { position:fixed;inset:8px;border-radius:20px;pointer-events:none;z-index:70;box-shadow:0 0 0 2.5px rgba(244,114,182,0.6),0 0 20px 4px rgba(192,132,252,0.35),0 0 50px 10px rgba(96,165,250,0.15);animation:borderGlow 3s ease-in-out infinite alternate; }
+@keyframes borderGlow { from{box-shadow:0 0 0 2.5px rgba(244,114,182,0.6),0 0 20px 4px rgba(192,132,252,0.35),0 0 50px 10px rgba(96,165,250,0.15)} to{box-shadow:0 0 0 2.5px rgba(192,132,252,0.8),0 0 30px 8px rgba(244,114,182,0.5),0 0 70px 16px rgba(96,165,250,0.25)} }
+#msg-flower-canvas { position:fixed;inset:0;pointer-events:none;z-index:61; }
+.msg-inner { position:relative;z-index:65;max-width:600px;margin:0 auto;padding:55px 26px 80px;text-align:center; }
+.msg-greeting { font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:rgba(200,100,180,0.75);letter-spacing:0.15em;margin-bottom:18px;opacity:0;animation:fadeUp 0.6s 0.3s forwards; }
+.msg-title { font-family:'Playfair Display',serif;font-size:clamp(28px,7vw,52px);color:#2a1030;line-height:1.1;margin-bottom:6px;opacity:0;animation:fadeUp 0.7s 0.5s forwards; }
+.msg-title em { font-style:italic;color:#e8637a; }
+.msg-divider { display:flex;align-items:center;gap:12px;justify-content:center;margin:22px 0;opacity:0;animation:fadeUp 0.5s 0.8s forwards; }
+.msg-divider .dl { height:1px;width:60px;background:linear-gradient(to right,transparent,#f9a8d4); }
+.msg-divider .dr { height:1px;width:60px;background:linear-gradient(to left,transparent,#c084fc); }
+.msg-sections { display:flex;flex-direction:column;gap:14px;text-align:left; }
+.msg-card { background:rgba(255,255,255,0.88);backdrop-filter:blur(10px);border-radius:20px;padding:20px 22px;position:relative;opacity:0;animation:fadeUp 0.55s forwards;box-shadow:0 4px 20px rgba(192,132,252,0.1); }
+.msg-card::before { content:'';position:absolute;inset:-1.5px;border-radius:21px;background:linear-gradient(135deg,rgba(244,114,182,0.5),rgba(192,132,252,0.5),rgba(96,165,250,0.4));z-index:-1; }
+.msg-card:nth-child(1){animation-delay:1.1s}.msg-card:nth-child(2){animation-delay:1.35s}.msg-card:nth-child(3){animation-delay:1.6s}.msg-card:nth-child(4){animation-delay:1.85s}.msg-card:nth-child(5){animation-delay:2.1s}
+.mc-header { display:flex;align-items:center;gap:12px;margin-bottom:8px; }
+.mc-icon { font-size:26px; }
+.mc-title { font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#2a1030; }
+.mc-body { font-size:14px;color:#6a3a58;line-height:1.72;font-weight:300; }
+.mc-body strong { color:#2a1030;font-weight:500; }
+.msg-closing { margin-top:36px;opacity:0;animation:fadeUp 0.6s 2.5s forwards;text-align:center; }
+.closing-poem { font-family:'Playfair Display',serif;font-style:italic;font-size:19px;color:#2a1030;line-height:1.7;max-width:380px;margin:0 auto 18px;position:relative;padding:0 18px; }
+.closing-poem::before { content:'"';font-size:70px;color:#f9c8d8;position:absolute;top:-14px;left:0;font-family:'Playfair Display',serif;line-height:1;z-index:-1; }
+.closing-from { font-size:13px;color:#e8637a;font-family:'Playfair Display',serif;font-style:italic;letter-spacing:0.05em; }
+.closing-hearts { font-size:36px;margin-top:12px;display:block;animation:heartBeat 1.3s 2.8s ease-in-out infinite; }
+@keyframes heartBeat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.25)} 30%{transform:scale(1)} 45%{transform:scale(1.14)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.confetti-dot { position:fixed;border-radius:50%;pointer-events:none;animation:confettiFall linear forwards;z-index:200; }
+@keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(105vh) rotate(720deg);opacity:0} }
+</style>
+</head>
+<body>
+
+<!-- NEON BORDER (always on top) -->
+<div id="neon-border"><canvas id="neon-canvas"></canvas></div>
+
+<!-- SCREEN 0: JULIET SMOKE INTRO -->
+<div id="screen-intro">
+  <canvas id="smoke-canvas"></canvas>
+  <div class="intro-skip">tap anywhere to skip ✨</div>
+</div>
+
+<!-- SCREEN 1: INCOMING CALL -->
+<div id="screen-call">
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+  <div style="text-align:center;position:relative;z-index:2;">
+    <div class="ripple-wrap">
+      <div class="ripple"></div><div class="ripple"></div>
+      <div class="ripple"></div><div class="ripple"></div>
+      <div class="avatar">🥰</div>
+    </div>
+    <div class="caller-info">
+      <div class="caller-label">Incoming Call</div>
+      <div class="caller-name">Terak 🥰</div>
+      <div class="caller-sub">📱 Mobile · ringing...</div>
+      <div class="swipe-hint">tap to answer or decline</div>
+    </div>
+  </div>
+  <div class="call-buttons">
+    <div class="btn-wrap">
+      <button class="btn-reject" id="btnReject" onclick="handleReject()">📵</button>
+      <span class="btn-label">Decline</span>
+    </div>
+    <div class="btn-wrap">
+      <button class="btn-answer" id="btnAnswer" onclick="handleAnswer()">📞</button>
+      <span class="btn-label">Answer</span>
+    </div>
+  </div>
+</div>
+
+<!-- REJECT OVERLAY -->
+<div id="reject-msg">
+  <div class="reject-emoji">😭</div>
+  <div class="reject-title">You really pressed decline?!</div>
+  <div class="reject-sub">Out of everyone… you declined ME? That's okay. I'm fine. Totally fine. 😭💔<br><br>…press answer. Please.</div>
+  <button class="reject-again-btn" onclick="resetToCall()">Okay fine, answer 📞</button>
+</div>
+
+<!-- SCREEN 2: ANSWERED -->
+<div id="screen-answered">
+  <div class="answered-avatar">🥰</div>
+  <div class="answered-name">Terak 🥰</div>
+  <div class="answered-timer" id="callTimer">0:00</div>
+  <div class="wave-bars">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+  </div>
+  <button class="end-call-btn" onclick="endCall()">📵</button>
+</div>
+
+<!-- SCREEN 3: BLOOM -->
+<div id="screen-bloom">
+  <canvas id="bloom-canvas"></canvas>
+  <div class="phone-frame">📱</div>
+</div>
+
+<!-- SCREEN 4: MESSAGE -->
+<div id="screen-message">
+  <canvas id="msg-flower-canvas"></canvas>
+  <div class="msg-border"></div>
+  <div class="msg-inner">
+    <div class="msg-greeting">✦ a message from your Terak ✦</div>
+    <h1 class="msg-title">You don't need me.<br><em>That's why I love this.</em></h1>
+    <div class="msg-divider"><span class="dl"></span><span style="font-size:20px">🌸💜🌸</span><span class="dr"></span></div>
+    <div class="msg-sections">
+      <div class="msg-card">
+        <div class="mc-header"><span class="mc-icon">🌊</span><span class="mc-title">You are whole on your own</span></div>
+        <div class="mc-body">I don't love you because you need me. I love you because you don't — and you still choose to be here. That's not dependency. That's something rarer. That's <strong>a real choice.</strong></div>
+      </div>
+      <div class="msg-card">
+        <div class="mc-header"><span class="mc-icon">🪞</span><span class="mc-title">You never lose yourself</span></div>
+        <div class="mc-body">The best thing about you is that you know who you are — even when life blurs the edges. You don't bend yourself into what others expect. You just… stay <strong>you.</strong> Unapologetically.</div>
+      </div>
+      <div class="msg-card">
+        <div class="mc-header"><span class="mc-icon">💬</span><span class="mc-title">A friend worth having — you get it</span></div>
+        <div class="mc-body">You know that kind of friendship where nobody's keeping score? Where showing up feels easy and silence doesn't feel awkward? <strong>That's what you give.</strong> And that's everything.</div>
+      </div>
+      <div class="msg-card">
+        <div class="mc-header"><span class="mc-icon">♾️</span><span class="mc-title">Infinite love, zero strings</span></div>
+        <div class="mc-body">I'm not here because I need someone. I'm here because being around you is <strong>genuinely good.</strong> No transaction. No pressure. Just love — the kind that doesn't suffocate. The kind that actually lasts.</div>
+      </div>
+      <div class="msg-card">
+        <div class="mc-header"><span class="mc-icon">🌸</span><span class="mc-title">So here's the truth</span></div>
+        <div class="mc-body">You're the kind of person people are lucky to know. Not because you're perfect — but because you're <strong>real.</strong> And in a world full of performances, real is the rarest thing of all.<br><br>I see you. I'm grateful for you. <strong>That's it. That's the whole message.</strong></div>
+      </div>
+    </div>
+    <div class="msg-closing">
+      <p class="closing-poem">Two free people choosing each other — not out of need, but out of something much more beautiful than that.</p>
+      <p class="closing-from">— Terak 🥰, with no strings attached</p>
+      <span class="closing-hearts">💖🌸💜</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ====== NEON BORDER ====== */
+(function(){
+  const canvas = document.getElementById('neon-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, dots = [];
+  const colors = [{r:0,g:100,b:255},{r:255,g:20,b:60},{r:0,g:220,b:80}];
+  const spacing = 26;
+  let t = 0;
+
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    buildDots();
+  }
+  function buildDots(){
+    dots = [];
+    const m = 9;
+    for(let x=m; x<W-m; x+=spacing) dots.push({x,y:m});
+    for(let y=m; y<H-m; y+=spacing) dots.push({x:W-m,y});
+    for(let x=W-m; x>m; x-=spacing) dots.push({x,y:H-m});
+    for(let y=H-m; y>m; y-=spacing) dots.push({x:m,y});
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function drawNeon(){
+    ctx.clearRect(0,0,W,H);
+    t += 0.045;
+    dots.forEach((dot,i)=>{
+      const col = colors[i % colors.length];
+      const phase = i * 0.41 + t;
+      const bright = 0.5 + 0.5 * Math.sin(phase);
+      const flicker = 0.7 + 0.3 * Math.sin(phase * 5.3 + i * 0.7);
+      const alpha = bright * flicker;
+      const r = 2.5 + bright * 3;
+
+      // glow halo
+      const g = ctx.createRadialGradient(dot.x,dot.y,0,dot.x,dot.y,r*7);
+      g.addColorStop(0, `rgba(${col.r},${col.g},${col.b},${alpha*0.8})`);
+      g.addColorStop(0.4, `rgba(${col.r},${col.g},${col.b},${alpha*0.2})`);
+      g.addColorStop(1, `rgba(${col.r},${col.g},${col.b},0)`);
+      ctx.beginPath(); ctx.arc(dot.x,dot.y,r*7,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+
+      // core
+      ctx.beginPath(); ctx.arc(dot.x,dot.y,r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(${Math.min(col.r+60,255)},${Math.min(col.g+60,255)},${Math.min(col.b+60,255)},${0.75+alpha*0.25})`;
+      ctx.shadowColor = `rgb(${col.r},${col.g},${col.b})`;
+      ctx.shadowBlur = 12 + bright * 18;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+    requestAnimationFrame(drawNeon);
+  }
+  drawNeon();
+})();
+
+/* ====== JULIET SMOKE INTRO ====== */
+(function(){
+  const canvas = document.getElementById('smoke-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+  resize(); window.addEventListener('resize',resize);
+
+  // Sample letter pixels from offscreen canvas
+  const off = document.createElement('canvas');
+  off.width = window.innerWidth; off.height = window.innerHeight;
+  const octx = off.getContext('2d');
+  const fs = Math.min(window.innerWidth * 0.22, 130);
+  octx.font = `italic bold ${fs}px 'Playfair Display', serif`;
+  octx.fillStyle = '#fff';
+  octx.textAlign = 'center';
+  octx.textBaseline = 'middle';
+  octx.fillText('Juliet', off.width/2, off.height/2);
+
+  const imgData = octx.getImageData(0,0,off.width,off.height).data;
+  const targets = [];
+  const step = 5;
+  for(let y=0; y<off.height; y+=step){
+    for(let x=0; x<off.width; x+=step){
+      if(imgData[(y*off.width+x)*4+3] > 120) targets.push({x,y});
+    }
+  }
+
+  const pinks = ['rgba(255,80,180,','rgba(255,30,140,','rgba(220,60,170,','rgba(255,130,210,','rgba(200,40,160,'];
+
+  const particles = targets.map(tgt => ({
+    x: tgt.x + (Math.random()-0.5)*80,
+    y: H + 60 + Math.random()*250,
+    tx: tgt.x, ty: tgt.y,
+    col: pinks[Math.floor(Math.random()*pinks.length)],
+    size: 2 + Math.random()*5,
+    delay: Math.random()*2.2,
+    speed: 0.035 + Math.random()*0.045,
+    wobble: (Math.random()-0.5)*0.015,
+    alpha: 0,
+    arrived: false,
+    holdUntil: 0,
+  }));
+
+  let startTime = null, done = false;
+  const DURATION = 6000;
+
+  function endIntro(){
+    if(done) return; done = true;
+    const el = document.getElementById('screen-intro');
+    el.style.transition = 'opacity 0.9s ease';
+    el.style.opacity = '0';
+    setTimeout(()=>{ el.style.display='none'; document.getElementById('screen-call').style.display='flex'; }, 900);
+  }
+
+  document.getElementById('screen-intro').addEventListener('click', endIntro);
+
+  function drawSmoke(ts){
+    if(!startTime) startTime = ts;
+    const elapsed = (ts - startTime) / 1000;
+    ctx.clearRect(0,0,W,H);
+
+    particles.forEach(p=>{
+      if(elapsed < p.delay) return;
+      if(!p.arrived){
+        p.x += (p.tx - p.x)*p.speed + p.wobble;
+        p.y += (p.ty - p.y)*p.speed;
+        p.wobble += (Math.random()-0.5)*0.002;
+        p.alpha = Math.min(p.alpha+0.05, 0.95);
+        if(Math.hypot(p.x-p.tx, p.y-p.ty)<2.5){ p.arrived=true; p.holdUntil=elapsed+1.8; }
+      } else {
+        if(elapsed > p.holdUntil) p.alpha -= 0.006;
+      }
+      if(p.alpha<=0) return;
+
+      const grd = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*3.5);
+      grd.addColorStop(0, p.col + Math.min(p.alpha,0.95)+')');
+      grd.addColorStop(0.5, p.col + (p.alpha*0.45)+')');
+      grd.addColorStop(1, p.col+'0)');
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.size*3.5,0,Math.PI*2);
+      ctx.fillStyle=grd; ctx.fill();
+    });
+
+    if(elapsed < DURATION/1000 && !done) requestAnimationFrame(drawSmoke);
+    else endIntro();
+  }
+  requestAnimationFrame(drawSmoke);
+  setTimeout(endIntro, DURATION);
+})();
+
+/* ====== REJECT ====== */
+let rejectCount = 0;
+function handleReject(){
+  rejectCount++;
+  const btn = document.getElementById('btnAnswer');
+  const scale = Math.min(1+rejectCount*0.28, 2.1);
+  btn.style.transform=`scale(${scale})`;
+  btn.style.boxShadow=`0 0 0 ${rejectCount*10}px rgba(48,209,88,0.12),0 10px 50px rgba(48,209,88,0.7)`;
+  btn.style.transition='all 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+  const msgs=["You really pressed decline?!","Really? Again? 😭","The answer button is RIGHT THERE 👀","I'm sobbing. I'm on the floor. Please. 😩","OKAY fine I'll wait... 💔"];
+  document.querySelector('.reject-title').textContent = msgs[Math.min(rejectCount-1,msgs.length-1)];
+  document.getElementById('reject-msg').style.display='flex';
+}
+function resetToCall(){ document.getElementById('reject-msg').style.display='none'; }
+
+/* ====== ANSWER ====== */
+let timerInterval, seconds=0;
+function handleAnswer(){
+  document.getElementById('btnAnswer').style.animation='answerGrow 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards';
+  setTimeout(()=>{
+    document.getElementById('screen-call').style.display='none';
+    document.getElementById('reject-msg').style.display='none';
+    document.getElementById('screen-answered').style.display='flex';
+    timerInterval=setInterval(()=>{
+      seconds++;
+      const m=Math.floor(seconds/60), s=seconds%60;
+      document.getElementById('callTimer').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+    },1000);
+  },600);
+}
+
+/* ====== END CALL ====== */
+function endCall(){
+  clearInterval(timerInterval);
+  document.getElementById('screen-answered').style.display='none';
+  startBloom();
+}
+
+/* ====== BLOOM ====== */
+function startBloom(){
+  const bloom=document.getElementById('screen-bloom');
+  bloom.style.display='block';
+  const canvas=document.getElementById('bloom-canvas');
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const cx=canvas.width/2, cy=canvas.height/2;
+  const pinks=['#ff4d8f','#ff80b4','#ffadd0','#ff1f6e','#ff6eb4','#e91e8c','#ff94c8'];
+  const flowers=[];
+  for(let i=0;i<60;i++){
+    const a=Math.random()*Math.PI*2, sp=3+Math.random()*7;
+    flowers.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,gravity:0.12,size:6+Math.random()*22,color:pinks[Math.floor(Math.random()*pinks.length)],rot:Math.random()*Math.PI*2,rotSpeed:(Math.random()-0.5)*0.1,alpha:1,type:Math.floor(Math.random()*3)});
+  }
+  let frame=0;
+  function drawBloom(){
+    frame++;
+    ctx.fillStyle='rgba(255,220,235,0.05)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    flowers.forEach(f=>{
+      f.x+=f.vx; f.y+=f.vy; f.vy+=f.gravity; f.rot+=f.rotSpeed; f.alpha-=0.008;
+      ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.rot); ctx.globalAlpha=Math.max(f.alpha,0);
+      if(f.type===0){
+        for(let p=0;p<5;p++){ctx.save();ctx.rotate((p/5)*Math.PI*2);ctx.beginPath();ctx.ellipse(0,-f.size*0.55,f.size*0.28,f.size*0.5,0,0,Math.PI*2);ctx.fillStyle=f.color;ctx.shadowColor=f.color;ctx.shadowBlur=8;ctx.fill();ctx.restore();}
+        ctx.beginPath();ctx.arc(0,0,f.size*0.2,0,Math.PI*2);ctx.fillStyle='#ffe080';ctx.fill();
+      } else if(f.type===1){
+        ctx.font=`${f.size*1.6}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(['💕','💖','🌸','✨'][Math.floor(Math.random()*4)],0,0);
+      } else {
+        ctx.beginPath();ctx.ellipse(0,0,f.size*0.35,f.size*0.65,0,0,Math.PI*2);ctx.fillStyle=f.color;ctx.shadowColor=f.color;ctx.shadowBlur=6;ctx.fill();
+      }
+      ctx.restore();
+    });
+    if(flowers.some(f=>f.alpha>0)||frame<120) requestAnimationFrame(drawBloom);
+    else transitionToMessage();
+  }
+  drawBloom();
+  setTimeout(transitionToMessage,3200);
+}
+
+let transitioned=false;
+function transitionToMessage(){
+  if(transitioned) return; transitioned=true;
+  document.getElementById('screen-bloom').style.display='none';
+  document.getElementById('screen-message').style.display='block';
+  initMsgFlowers(); launchCelebration();
+}
+
+/* ====== MESSAGE FLOWERS ====== */
+function initMsgFlowers(){
+  const fc=document.getElementById('msg-flower-canvas');
+  fc.width=window.innerWidth; fc.height=window.innerHeight;
+  const ctx=fc.getContext('2d');
+  const flowers=Array.from({length:35},()=>({x:Math.random()*fc.width,y:Math.random()*fc.height,size:8+Math.random()*24,hue:300+Math.random()*60,rot:Math.random()*Math.PI*2,alpha:0.2+Math.random()*0.45,speed:0.01+Math.random()*0.02,phase:Math.random()*Math.PI*2,vy:0.3+Math.random()*0.7,vx:(Math.random()-0.5)*0.4}));
+  const leds=[],ledCols=['#f472b6','#c084fc','#60a5fa','#818cf8','#fb7185'];
+  for(let i=0;i<=28;i++) leds.push({x:fc.width*i/28,y:22+Math.sin(i*0.7)*10,phase:i*0.4,side:'top'});
+  for(let i=0;i<=18;i++) leds.push({x:20+Math.sin(i*0.5)*8,y:fc.height*i/18,phase:i*0.35,side:'left'});
+  for(let i=0;i<=18;i++) leds.push({x:fc.width-20+Math.sin(i*0.5)*8,y:fc.height*i/18,phase:i*0.35+1,side:'right'});
+  let t=0;
+  function draw(){
+    ctx.clearRect(0,0,fc.width,fc.height); t+=0.016;
+    flowers.forEach(f=>{
+      ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot+Math.sin(t*f.speed+f.phase)*0.2);ctx.globalAlpha=f.alpha;
+      for(let p=0;p<5;p++){ctx.save();ctx.rotate((p/5)*Math.PI*2);ctx.beginPath();ctx.ellipse(0,-f.size*0.55,f.size*0.3,f.size*0.52,0,0,Math.PI*2);const g=ctx.createRadialGradient(0,-f.size*0.3,0,0,-f.size*0.55,f.size*0.55);g.addColorStop(0,`hsla(${f.hue+20},100%,88%,1)`);g.addColorStop(1,`hsla(${f.hue},85%,65%,0.6)`);ctx.fillStyle=g;ctx.fill();ctx.restore();}
+      ctx.beginPath();ctx.arc(0,0,f.size*0.2,0,Math.PI*2);ctx.fillStyle='#ffe080';ctx.fill();ctx.restore();
+      f.y+=f.vy;f.x+=f.vx;if(f.y>fc.height+40){f.y=-40;f.x=Math.random()*fc.width;}
+    });
+    ['top','left','right'].forEach(side=>{const pts=leds.filter(l=>l.side===side);ctx.save();ctx.strokeStyle='rgba(150,100,200,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();ctx.restore();});
+    leds.forEach((l,i)=>{const col=ledCols[i%ledCols.length];const b=0.5+0.5*Math.sin(t*2.8+l.phase);ctx.save();ctx.beginPath();ctx.arc(l.x,l.y,3+b*3,0,Math.PI*2);ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=10+b*14;ctx.globalAlpha=0.55+b*0.45;ctx.fill();ctx.restore();});
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ====== CELEBRATION ====== */
+function launchCelebration(){
+  const emojis=['🌸','💕','🎉','✨','💖','🌺','🎊','💐','🥳','🌷','🎀','💜'];
+  const cols=['#f472b6','#c084fc','#60a5fa','#fb7185','#a78bfa','#fbbf24'];
+  for(let i=0;i<60;i++){setTimeout(()=>{const d=document.createElement('div');d.className='confetti-dot';const sz=4+Math.random()*9;d.style.cssText=`left:${Math.random()*100}%;top:0;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${1.5+Math.random()*2.5}s;width:${sz}px;height:${sz}px;border-radius:${Math.random()>.4?'50%':'3px'};`;document.body.appendChild(d);setTimeout(()=>d.remove(),4000);},i*40);}
+  for(let i=0;i<20;i++){setTimeout(()=>{const el=document.createElement('div');el.textContent=emojis[Math.floor(Math.random()*emojis.length)];el.style.cssText=`position:fixed;left:${10+Math.random()*80}%;bottom:0;font-size:${20+Math.random()*18}px;pointer-events:none;z-index:300;animation:emojiFloat ${1+Math.random()*1.2}s ease-out forwards;`;document.body.appendChild(el);setTimeout(()=>el.remove(),2500);},i*120);}
+}
+const st=document.createElement('style');
+st.textContent='@keyframes emojiFloat{0%{transform:translateY(0) scale(0.5) rotate(0deg);opacity:1}100%{transform:translateY(-75vh) scale(1.1) rotate(20deg);opacity:0}}';
+document.head.appendChild(st);
+</script>
+</body>
+</html>
