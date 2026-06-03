@@ -193,6 +193,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <p>Tenri Schools Embu – Elections 2026</p>
     <div class="admin-field"><label>Username</label><input type="text" id="adminUser" placeholder="admin" autocomplete="off"/></div>
     <div class="admin-field"><label>Password</label><input type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer">
+        <input type="checkbox" id="rememberMe" style="width:16px;height:16px;accent-color:#d4952a;cursor:pointer"/>
+        Remember my credentials
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer">
+        <input type="checkbox" id="stayLoggedIn" style="width:16px;height:16px;accent-color:#d4952a;cursor:pointer"/>
+        Stay logged in (persist across refreshes)
+      </label>
+    </div>
     <button class="login-btn" onclick="doLogin()">Sign In →</button>
     <p class="login-hint">Demo: admin / tenri2026</p>
   </div>
@@ -416,6 +426,32 @@ let adminUser=localStorage.getItem('tv_admin_user')||'admin';
 let adminPass=localStorage.getItem('tv_admin_pass')||'tenri2026';
 
 // ══════════════════════════════════════
+//  SESSION CHECK — auto-login on refresh
+// ══════════════════════════════════════
+function checkSession(){
+  const stayLoggedIn = localStorage.getItem('tv_admin_stay')==='1';
+  const sessionActive = sessionStorage.getItem('tv_admin_session')==='1';
+  if(stayLoggedIn || sessionActive){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('dashboardScreen').style.display='block';
+    initDashboard();
+    return true;
+  }
+  // Pre-fill saved credentials if remember me was on
+  const saved = JSON.parse(localStorage.getItem('tv_admin_remember')||'null');
+  if(saved){
+    const u=document.getElementById('adminUser');
+    const p=document.getElementById('adminPass');
+    const r=document.getElementById('rememberMe');
+    if(u)u.value=saved.user||'';
+    if(p)p.value=saved.pass||'';
+    if(r)r.checked=true;
+  }
+  return false;
+}
+window.addEventListener('load', checkSession);
+
+// ══════════════════════════════════════
 //  LOAD FROM SUPABASE
 // ══════════════════════════════════════
 async function loadData(){
@@ -436,7 +472,16 @@ async function loadData(){
 function doLogin(){
   const u=document.getElementById('adminUser').value.trim();
   const p=document.getElementById('adminPass').value;
+  const remember=document.getElementById('rememberMe')?.checked||false;
+  const stayIn=document.getElementById('stayLoggedIn')?.checked||false;
   if(u===adminUser&&p===adminPass){
+    // Save session
+    sessionStorage.setItem('tv_admin_session','1');
+    if(stayIn) localStorage.setItem('tv_admin_stay','1');
+    else localStorage.removeItem('tv_admin_stay');
+    // Save credentials if remember me checked
+    if(remember) localStorage.setItem('tv_admin_remember',JSON.stringify({user:u,pass:p}));
+    else localStorage.removeItem('tv_admin_remember');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('dashboardScreen').style.display='block';
     initDashboard();
@@ -444,10 +489,13 @@ function doLogin(){
   } else { toast('❌ Invalid credentials','err'); }
 }
 function doLogout(){
+  sessionStorage.removeItem('tv_admin_session');
+  localStorage.removeItem('tv_admin_stay');
   document.getElementById('dashboardScreen').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('adminUser').value='';
   document.getElementById('adminPass').value='';
+  toast('Signed out successfully','ok');
 }
 
 // ══════════════════════════════════════
