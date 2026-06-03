@@ -78,7 +78,7 @@ main{max-width:1040px;margin:0 auto;padding:32px 16px 80px}
 .c-card{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:20px 16px 18px;cursor:pointer;text-align:center;transition:all .25s ease;position:relative;overflow:hidden}
 .c-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--accent,#ccc)}
 .c-card:hover{border-color:var(--accent,#aaa);transform:translateY(-3px);box-shadow:0 8px 24px var(--shadow)}
-.c-card.selected{border-color:var(--accent,#aaa);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 15%,transparent),0 8px 24px var(--shadow)}
+.c-card.selected{border-color:var(--accent,#aaa);box-shadow:0 0 0 4px rgba(180,100,40,0.18),0 8px 24px var(--shadow);background:#fffdf7}
 .c-card.voted-locked{cursor:default}
 .c-check{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--accent,#ccc);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;opacity:0;transform:scale(.4);transition:all .25s cubic-bezier(.34,1.56,.64,1)}
 .c-card.selected .c-check{opacity:1;transform:scale(1)}
@@ -339,7 +339,8 @@ async function loadData(){
     votes={};
     if(Array.isArray(voteRows)) voteRows.forEach(r=>{ votes[r.candidate_id]=r.count; });
     voters = Array.isArray(voterRows) ? voterRows : [];
-  } catch(e){ console.error('Load error',e); }
+  } catch(e){ console.warn('Supabase offline, running locally',e); }
+  finally { const o=document.getElementById('loadingOverlay'); if(o) o.style.display='none'; }
 }
 
 // ══════════════════════════════════════
@@ -626,14 +627,23 @@ function startRealtime(){
 //  INIT
 // ══════════════════════════════════════
 (async()=>{
-  await loadData();
-  document.getElementById('loadingOverlay').style.display='none';
+  // Hide overlay immediately so UI is never blocked
+  const overlay = document.getElementById('loadingOverlay');
+  if(overlay) overlay.style.display='none';
+
   if(isVerified){
     document.getElementById('verifyGate').style.display='none';
     document.getElementById('voteForm').style.display='block';
   }
   if(hasVoted) lockVoteForm();
+
+  // Render grids right away with empty votes (so cards are clickable instantly)
   renderAllGrids(); buildLbFilter(); renderLeaderboard(); renderVoterWall(); updateCounter();
+
+  // Then load from Supabase in background and refresh
+  await loadData();
+  renderAllGrids(); renderLeaderboard(); renderVoterWall(); updateCounter();
+
   startRealtime();
 })();
 </script>
